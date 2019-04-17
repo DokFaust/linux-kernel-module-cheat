@@ -358,10 +358,11 @@ See: https://github.com/cirosantilli/linux-kernel-module-cheat#initrd
             help='''\
 Use the given baremetal executable instead of the Linux kernel.
 
-If the path is absolute, it is used as is.
+If the path points to a source code inside baremetal/, then the
+corresponding executable is automatically found.
 
-If the path is relative, we assume that it points to a source code
-inside baremetal/ and then try to use corresponding executable.
+Extensions are optional: if not given, automatically try to complete
+with both input source and output extensions.
 '''
         )
 
@@ -467,6 +468,17 @@ CLI arguments to pass to the userland executable.
         )
 
         # Run.
+        self.add_argument(
+            '--in-tree',
+            default=False,
+            help='''\
+Place build output inside source tree to conveniently run it, especially when
+building with the host native toolchain. Currently only supported by ./build-userland.
+
+When running, prefer in-tree executables instead of out-of-tree ones, e.g.:
+userland/c/hello resolves userland/c/hello.out instead of the out-of-tree one.
+''',
+        )
         self.add_argument(
             '--port-offset',
             type=int,
@@ -1171,26 +1183,29 @@ lunch aosp_{}-eng
         Ensure that the path lies inside source_tree_root.
 
         Multiple matches may happen if multiple multiple exts files exist.
-        E.g., after an in-tree build, in_path='hello' and exts=['.c', '.out']
-        would match both:
+        E.g., after an in-tree build with cwd = userland/c/, in_path='hello' and
+        exts=['.c', '.out'] would match both:
 
-        - userland/hello.c
-        - userland/hello.out
+        - userland/c/hello.c
+        - userland/c/hello.out
 
         If you also want directories to be matched, just add an empty string
         `''` to exts, which leads all of the following to match the arch directory:
 
-        - arch
-        - arch.c
         - userland/arch
+        - userland/arch.c
         - /full/path/to/userland/arch
 
         Note however that this potentially prevents differentiation between
         files and directories: e.g. if you had both a file arch.c and a directory arch/,
         and exts=['', '.c'], then both would get matched.
+
+        The LKMC toplevel directory is set to equal source_tree_root.
         '''
         in_path = os.path.abspath(in_path)
         source_tree_root = os.path.abspath(source_tree_root)
+        if in_path == self.env['root_dir']:
+            return [source_tree_root]
         if not in_path.startswith(source_tree_root):
             raise Exception(
                 'The input path {} is not inside the source directory {}'.format(
@@ -1208,24 +1223,45 @@ lunch aosp_{}-eng
             raise Exception('No file not found for input: ' + in_path)
         return result
 
-    def resolve_executable(self, in_path, magic_in_dir, magic_out_dir, out_exts):
-        if os.path.isabs(in_path):
-            return in_path
-        else:
-            paths = [
-                os.path.join(magic_out_dir, in_path),
-                os.path.join(
-                    magic_out_dir,
-                    os.path.relpath(in_path, magic_in_dir),
-                )
-            ]
-            for path in paths:
+    def resolve_executable(
+        self,
+        in_path,
+        magic_in_dir,
+        magic_out_dir,
+        out_exts
+    ):
+        in_path_abs = os.path.abspath(in_path)
+        magic_in_dir = os.path.abspath(magic_in_dir)
+        magic_out_dir = os.path.abspath(magic_out_dir)
+        in_base, in_ext = os.path.splitext(in_path_abs)
+        if os.path.exists(in_path_abs) and in_ext in out_exts:
+            return in_path_abs
+        multi_ext_candidates = glob.glob(in_base + '.*')
+        src_matches = []
+        out_matches = []
+        in_srcdir = in_path_abs.startswith(magic_in_dir)
+        for path in multi_ext_candidates:
+            path_base, path_ext = os.path.splitext(path)
+            if path_ext in out_exts:
+                out_matches.append(path)
+            elif in_srcdir:
                 for out_ext in out_exts:
-                    path = os.path.splitext(path)[0] + out_ext
-                    if os.path.exists(path):
-                        return path
-            if not self.env['dry_run']:
-                raise Exception('Executable file not found. Tried:\n' + '\n'.join(paths))
+                    out_path = os.path.join(
+                        magic_out_dir,
+                        os.path.relpath(path_base, magic_in_dir),
+                    ) + out_ext
+                    if os.path.exists(out_path):
+                        src_matches.append(out_path)
+        matches = []
+        if self.env['in_tree']:
+            matches.extend(out_matches)
+            matches.extend(src_matches)
+        else:
+            matches.extend(src_matches)
+            matches.extend(out_matches)
+        if not matches and not self.env['dry_run']:
+            raise Exception('Executable file not found for path: ' + in_path)
+        return matches[0]
 
     def resolve_userland_executable(self, path):
         '''

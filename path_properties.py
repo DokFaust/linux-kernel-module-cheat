@@ -57,32 +57,35 @@ class PrefixTree:
         self.value = value
 
 path_properties_tree = PrefixTree({
-    'arch': PrefixTree({
-        'x86_64': PrefixTree(
-            {
-                'c': PrefixTree({
-                    'ring0.c': PrefixTree(value=PathProperties(receives_signal=True))
-                })
-            },
-            PathProperties(allowed_archs={'x86_64'}),
-        ),
-        'arm': PrefixTree(value=PathProperties(allowed_archs={'arm'})),
-        'aarch64': PrefixTree(value=PathProperties(allowed_archs={'aarch64'})),
-        'empty.S': PrefixTree(value=PathProperties(no_executable=True)),
-        'fail.S': PrefixTree(value=PathProperties(no_executable=True)),
-        'main.c': PrefixTree(value=PathProperties(no_executable=True)),
-    }),
-    'c': PrefixTree({
-        'assert_fail.c': PrefixTree(value=PathProperties(exit_status=1)),
-        'false.c': PrefixTree(value=PathProperties(exit_status=1)),
-        'infinite_loop.c': PrefixTree(value=PathProperties(more_than_1s=True)),
-    }),
-    'kernel_modules': PrefixTree(value=PathProperties(requires_kernel_modules=True)),
-    'linux': PrefixTree(value=PathProperties(requires_kernel_modules=True)),
-    'posix': PrefixTree({
-        'count.c': PrefixTree(value=PathProperties(more_than_1s=True)),
-        'sleep_forever.c': PrefixTree(value=PathProperties(more_than_1s=True)),
-        'virt_to_phys_test.c': PrefixTree(value=PathProperties(more_than_1s=True)),
+    'userland': PrefixTree({
+        'arch': PrefixTree({
+            'x86_64': PrefixTree(
+                {
+                    'c': PrefixTree({
+                        'ring0.c': PrefixTree(value=PathProperties(receives_signal=True))
+                    })
+                },
+                PathProperties(allowed_archs={'x86_64'}),
+            ),
+            'arm': PrefixTree(value=PathProperties(allowed_archs={'arm'})),
+            'aarch64': PrefixTree(value=PathProperties(allowed_archs={'aarch64'})),
+            'empty.S': PrefixTree(value=PathProperties(no_executable=True)),
+            'fail.S': PrefixTree(value=PathProperties(no_executable=True)),
+            'main.c': PrefixTree(value=PathProperties(no_executable=True)),
+        }),
+        'c': PrefixTree({
+            'assert_fail.c': PrefixTree(value=PathProperties(exit_status=1)),
+            'false.c': PrefixTree(value=PathProperties(exit_status=1)),
+            'infinite_loop.c': PrefixTree(value=PathProperties(more_than_1s=True)),
+        }),
+        'kernel_modules': PrefixTree(value=PathProperties(requires_kernel_modules=True)),
+        # TODO not really true, classify further,
+        'linux': PrefixTree(value=PathProperties(requires_kernel_modules=True)),
+        'posix': PrefixTree({
+            'count.c': PrefixTree(value=PathProperties(more_than_1s=True)),
+            'sleep_forever.c': PrefixTree(value=PathProperties(more_than_1s=True)),
+            'virt_to_phys_test.c': PrefixTree(value=PathProperties(more_than_1s=True)),
+        })
     })
 })
 

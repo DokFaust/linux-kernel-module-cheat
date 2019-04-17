@@ -35,6 +35,8 @@ set -eux
 ./build-userland --in-tree --clean "$(pwd)/userland/c/hello.out"
 ./build-userland --in-tree --clean
 
+./build-userland-in-tree
+
 cd userland
 ./build
 ./build --clean

@@ -35,14 +35,6 @@ Indicate that all packages from --has-package are available.
 ''',
         )
         self.add_argument(
-            '--in-tree',
-            default=False,
-            help='''\
-Place build output inside soure tree to conveniently run it, especially when
-building with the host toolchain.
-''',
-        )
-        self.add_argument(
             'targets',
             default=[],
             help='''\
